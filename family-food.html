@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家庭食物管理</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --cream: #F7F4EF;
+  --white: #FFFFFF;
+  --green: #3A6B4A;
+  --green-mid: #5A8F6A;
+  --green-light: #EAF2EC;
+  --orange: #D4621A;
+  --orange-light: #FDF0E8;
+  --red: #C0392B;
+  --red-light: #FEF2F2;
+  --yellow: #D4A017;
+  --text: #1C1C1C;
+  --text-mid: #4A4A4A;
+  --text-muted: #888;
+  --border: #E4DDD4;
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.07);
+  --shadow: 0 3px 12px rgba(0,0,0,.09);
+  --shadow-lg: 0 8px 28px rgba(0,0,0,.14);
+  --radius: 14px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', 'Segoe UI', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+/* HEADER */
+header { background: var(--green); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 58px; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+.logo { font-size: 17px; font-weight: 700; color: white; display: flex; align-items: center; gap: 8px; }
+.sync-badge { font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+.sync-badge.online { background: rgba(255,255,255,.15); color: #A7F3D0; }
+.sync-badge.offline { background: rgba(255,100,100,.2); color: #FCA5A5; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; }
+.sync-badge.online .sync-dot { background: #34D399; animation: pulse 2s infinite; }
+.sync-badge.offline .sync-dot { background: #F87171; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* MAIN */
+main { max-width: 1100px; margin: 0 auto; padding: 20px 14px 60px; }
+
+/* LOADING */
+.loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; color: var(--text-muted); }
+.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* STATS */
+.stats { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.stat { background: var(--white); border-radius: 12px; padding: 13px 16px; box-shadow: var(--shadow-sm); flex: 1; min-width: 100px; }
+.stat-num { font-size: 26px; font-weight: 800; line-height: 1; }
+.stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-top: 3px; }
+.stat.green .stat-num { color: var(--green); }
+.stat.orange .stat-num { color: var(--orange); }
+.stat.red .stat-num { color: var(--red); }
+.stat.blue .stat-num { color: #2563EB; }
+
+/* TOOLBAR */
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+.search-wrap { position: relative; flex: 1; min-width: 160px; }
+.search-wrap input { width: 100%; padding: 10px 12px 10px 36px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; background: var(--white); outline: none; color: var(--text); transition: border-color .15s; }
+.search-wrap input:focus { border-color: var(--green-mid); }
+.search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; font-size: 14px; }
+.filter-select { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; background: var(--white); outline: none; color: var(--text); cursor: pointer; }
+.filter-select:focus { border-color: var(--green-mid); }
+.btn-add { background: var(--green); color: white; border: none; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: background .15s; white-space: nowrap; }
+.btn-add:hover { background: #2F5840; }
+
+/* ZONE TABS */
+.zone-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.zone-tab { padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--white); color: var(--text-mid); transition: all .15s; display: flex; align-items: center; gap: 4px; }
+.zone-tab.active { background: var(--green); color: white; border-color: var(--green); }
+.zone-cnt { font-size: 11px; background: var(--green-light); color: var(--green); padding: 1px 6px; border-radius: 10px; }
+.zone-tab.active .zone-cnt { background: rgba(255,255,255,.25); color: white; }
+
+/* GRID */
+.food-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(195px, 1fr)); gap: 14px; }
+
+/* CARD */
+.food-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; transition: box-shadow .18s, transform .18s; position: relative; }
+.food-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.card-photo { width: 100%; aspect-ratio: 4/3; background: var(--cream); display: flex; align-items: center; justify-content: center; font-size: 50px; overflow: hidden; }
+.card-photo img { width: 100%; height: 100%; object-fit: cover; }
+.expired-badge { position: absolute; top: 9px; right: 9px; background: var(--red); color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.card-body { padding: 11px 12px 10px; }
+.card-name { font-size: 15px; font-weight: 700; margin-bottom: 6px; line-height: 1.3; }
+.expiry-bar-wrap { margin-bottom: 7px; }
+.expiry-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+.expiry-days { font-weight: 700; font-size: 12px; }
+.expiry-days.ok { color: var(--green); }
+.expiry-days.warn { color: var(--yellow); }
+.expiry-days.urgent { color: var(--orange); }
+.expiry-days.expired { color: var(--red); }
+.ebar { height: 5px; border-radius: 3px; background: #EEE; overflow: hidden; }
+.efill { height: 100%; border-radius: 3px; }
+.efill.ok { background: var(--green-mid); }
+.efill.warn { background: var(--yellow); }
+.efill.urgent { background: var(--orange); }
+.efill.expired { background: var(--red); }
+.card-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.chip { font-size: 11px; padding: 2px 7px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 2px; }
+.chip-zone { background: var(--green-light); color: var(--green); }
+.chip-loc { background: #EEF2FF; color: #4338CA; }
+.chip-qty { background: var(--orange-light); color: var(--orange); }
+.card-note { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-actions { display: flex; gap: 6px; }
+.card-btn { flex: 1; padding: 7px; border-radius: 8px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: all .15s; }
+.card-btn-edit { background: var(--green-light); color: var(--green); }
+.card-btn-edit:hover { background: #D5EAD9; }
+.card-btn-del { background: var(--red-light); color: var(--red); }
+.card-btn-del:hover { background: #FEE2E2; }
+
+/* EMPTY */
+.empty { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.empty-emoji { font-size: 48px; margin-bottom: 10px; }
+
+/* MODAL */
+.overlay { position: fixed; inset: 0; background: rgba(28,28,28,.55); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow-y: auto; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--white); border-radius: 18px; width: 100%; max-width: 500px; padding: 24px; box-shadow: var(--shadow-lg); transform: translateY(16px); transition: transform .22s; margin: auto; }
+.overlay.open .modal { transform: translateY(0); }
+.modal-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.modal-title { font-size: 18px; font-weight: 800; color: var(--green); }
+.modal-close { width: 30px; height: 30px; border-radius: 8px; border: none; background: var(--cream); cursor: pointer; font-size: 17px; color: var(--text-mid); display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { background: var(--border); }
+.photo-area { border: 2px dashed var(--border); border-radius: 12px; height: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; margin-bottom: 16px; position: relative; overflow: hidden; background: var(--cream); transition: border-color .15s; }
+.photo-area:hover { border-color: var(--green-mid); }
+.photo-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.photo-area img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+.photo-hint { font-size: 13px; color: var(--text-muted); text-align: center; pointer-events: none; }
+.photo-hint .icon { font-size: 26px; margin-bottom: 3px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-row { margin-bottom: 0; }
+.form-row.full { grid-column: 1/-1; }
+.form-row label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .4px; }
+.form-input, .form-select { width: 100%; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 9px; font-size: 14px; color: var(--text); outline: none; background: var(--white); transition: border-color .15s; font-family: inherit; }
+.form-input:focus, .form-select:focus { border-color: var(--green-mid); }
+.zone-selector { display: flex; gap: 6px; flex-wrap: wrap; }
+.zone-opt { flex: 1; min-width: 60px; padding: 8px 4px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--cream); cursor: pointer; text-align: center; transition: all .15s; font-size: 11px; font-weight: 600; color: var(--text-mid); }
+.zone-opt .zicon { font-size: 20px; display: block; margin-bottom: 2px; }
+.zone-opt.selected { border-color: var(--green); background: var(--green-light); color: var(--green); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.btn-cancel { padding: 9px 16px; border-radius: 9px; font-size: 14px; font-weight: 600; border: 1.5px solid var(--border); background: var(--white); color: var(--text-mid); cursor: pointer; }
+.btn-cancel:hover { background: var(--cream); }
+.btn-save { padding: 9px 20px; border-radius: 9px; font-size: 14px; font-weight: 700; border: none; background: var(--green); color: white; cursor: pointer; transition: background .15s; }
+.btn-save:hover { background: #2F5840; }
+.btn-save:disabled { background: #aaa; cursor: not-allowed; }
+
+/* TOAST */
+.toasts { position: fixed; bottom: 18px; right: 18px; z-index: 500; display: flex; flex-direction: column; gap: 8px; }
+.toast { padding: 10px 15px; border-radius: 10px; font-size: 13px; font-weight: 600; color: white; box-shadow: var(--shadow); transform: translateX(120%); transition: transform .25s ease; max-width: 260px; }
+.toast.show { transform: translateX(0); }
+.toast.ok { background: var(--green); }
+.toast.warn { background: var(--orange); }
+.toast.err { background: var(--red); }
+
+@media (max-width: 580px) {
+  .food-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .stats { gap: 8px; }
+}
+@media (max-width: 340px) { .food-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🥦 家庭食物管理</div>
+  <div class="sync-badge offline" id="syncBadge">
+    <span class="sync-dot"></span>
+    <span id="syncText">連線中…</span>
+  </div>
+</header>
+
+<main>
+  <div class="loading-screen" id="loadingScreen">
+    <div class="spinner"></div>
+    <div>連接資料庫中…</div>
+  </div>
+
+  <div id="appContent" style="display:none">
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat green"><div class="stat-num" id="sTotal">0</div><div class="stat-label">食材種類</div></div>
+      <div class="stat blue"><div class="stat-num" id="sExpiry">0</div><div class="stat-label">有效食材</div></div>
+      <div class="stat orange"><div class="stat-num" id="sWarn">0</div><div class="stat-label">3天內到期</div></div>
+      <div class="stat red"><div class="stat-num" id="sExpired">0</div><div class="stat-label">已過期</div></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="搜尋食材…" oninput="render()">
+      </div>
+      <select class="filter-select" id="catFilter" onchange="render()">
+        <option value="">全部類別</option>
+      </select>
+      <select class="filter-select" id="sortSel" onchange="render()">
+        <option value="expiry">依到期日</option>
+        <option value="name">依名稱</option>
+        <option value="zone">依溫層</option>
+        <option value="added">最新新增</option>
+      </select>
+      <button class="btn-add" onclick="openModal()">＋ 新增食材</button>
+    </div>
+
+    <!-- Zone tabs -->
+    <div class="zone-tabs">
+      <div class="zone-tab active" data-zone="" onclick="setZone(this)">全部 <span class="zone-cnt" id="cnt-all">0</span></div>
+      <div class="zone-tab" data-zone="冷凍" onclick="setZone(this)">❄️ 冷凍 <span class="zone-cnt" id="cnt-冷凍">0</span></div>
+      <div class="zone-tab" data-zone="冷藏" onclick="setZone(this)">🌡️ 冷藏 <span class="zone-cnt" id="cnt-冷藏">0</span></div>
+      <div class="zone-tab" data-zone="常溫" onclick="setZone(this)">🏠 常溫 <span class="zone-cnt" id="cnt-常溫">0</span></div>
+      <div class="zone-tab" data-zone="乾燥" onclick="setZone(this)">🌾 乾燥 <span class="zone-cnt" id="cnt-乾燥">0</span></div>
+    </div>
+
+    <!-- Grid -->
+    <div class="food-grid" id="foodGrid"></div>
+  </div>
+</main>
+
+<!-- Modal -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modalTitle">新增食材</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="photo-area" id="photoArea">
+      <input type="file" id="photoInput" accept="image/*" onchange="handlePhoto(event)">
+      <div class="photo-hint" id="photoHint"><div class="icon">📷</div><div>點擊上傳照片</div></div>
+      <img id="photoPreview" style="display:none">
+    </div>
+    <div class="form-grid">
+      <div class="form-row full">
+        <label>食材名稱 *</label>
+        <input class="form-input" type="text" id="fName" placeholder="例：雞胸肉">
+      </div>
+      <div class="form-row full">
+        <label>溫層 *</label>
+        <div class="zone-selector">
+          <div class="zone-opt selected" data-z="冷凍" onclick="selZone(this)"><span class="zicon">❄️</span>冷凍</div>
+          <div class="zone-opt" data-z="冷藏" onclick="selZone(this)"><span class="zicon">🌡️</span>冷藏</div>
+          <div class="zone-opt" data-z="常溫" onclick="selZone(this)"><span class="zicon">🏠</span>常溫</div>
+          <div class="zone-opt" data-z="乾燥" onclick="selZone(this)"><span class="zicon">🌾</span>乾燥</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>類別</label>
+        <input class="form-input" type="text" id="fCat" placeholder="例：肉類" list="catDL">
+        <datalist id="catDL"></datalist>
+      </div>
+      <div class="form-row">
+        <label>存放位置</label>
+        <input class="form-input" type="text" id="fLoc" placeholder="例：冰箱上層">
+      </div>
+      <div class="form-row">
+        <label>數量</label>
+        <input class="form-input" type="text" id="fQty" placeholder="例：3包 / 500g">
+      </div>
+      <div class="form-row">
+        <label>保存期限</label>
+        <input class="form-input" type="date" id="fExpiry">
+      </div>
+      <div class="form-row full">
+        <label>備註</label>
+        <input class="form-input" type="text" id="fNote" placeholder="開封日、料理建議…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-save" id="saveBtn" onclick="saveItem()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, push, update, remove, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyARi04N76FQgIJjRulKZGbg-xASHL7GzCA",
+  authDomain: "family-food-2ce0d.firebaseapp.com",
+  databaseURL: "https://family-food-2ce0d-default-rtdb.firebaseio.com",
+  projectId: "family-food-2ce0d",
+  storageBucket: "family-food-2ce0d.firebasestorage.app",
+  messagingSenderId: "250652722667",
+  appId: "1:250652722667:web:6a1c0c09aa01ef66bf45ae"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const itemsRef = ref(db, 'foods');
+
+// State
+let items = [];
+let editId = null;
+let activeZone = '';
+let photoBuf = null;
+const ZONES = ['冷凍','冷藏','常溫','乾燥'];
+const ZONE_ICONS = {'冷凍':'❄️','冷藏':'🌡️','常溫':'🏠','乾燥':'🌾'};
+
+// ── FIREBASE SYNC ──
+onValue(itemsRef, (snapshot) => {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('appContent').style.display = 'block';
+  const badge = document.getElementById('syncBadge');
+  badge.className = 'sync-badge online';
+  document.getElementById('syncText').textContent = '即時同步中';
+
+  const data = snapshot.val();
+  items = data ? Object.entries(data).map(([k,v]) => ({...v, _key: k})) : [];
+
+  // Seed demo if empty
+  if (items.length === 0) {
+    const d = (n) => { const x = new Date(); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+    const seeds = [
+      {name:'雞胸肉', zone:'冷凍', category:'肉類', location:'冰箱下層', qty:'3 包', expiry:d(60), note:'已分裝', photo:null, addedAt: Date.now()},
+      {name:'牛奶', zone:'冷藏', category:'乳製品', location:'冰箱門架', qty:'1 瓶', expiry:d(5), note:'', photo:null, addedAt: Date.now()},
+      {name:'雞蛋', zone:'冷藏', category:'蛋類', location:'蛋架', qty:'8 顆', expiry:d(14), note:'', photo:null, addedAt: Date.now()},
+      {name:'白米', zone:'乾燥', category:'主食', location:'米桶', qty:'5 kg', expiry:d(180), note:'', photo:null, addedAt: Date.now()},
+      {name:'花椰菜', zone:'冷藏', category:'蔬菜', location:'冰箱上層', qty:'1 顆', expiry:d(-1), note:'', photo:null, addedAt: Date.now()},
+    ];
+    seeds.forEach(s => push(itemsRef, s));
+  }
+
+  render();
+}, (error) => {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('appContent').style.display = 'block';
+  const badge = document.getElementById('syncBadge');
+  badge.className = 'sync-badge offline';
+  document.getElementById('syncText').textContent = '連線失敗';
+  toast('無法連接資料庫', 'err');
+});
+
+// ── UTILS ──
+function daysLeft(expiry) {
+  if (!expiry) return null;
+  return Math.floor((new Date(expiry) - new Date()) / 86400000);
+}
+function expClass(d) {
+  if (d === null) return 'ok';
+  if (d < 0) return 'expired';
+  if (d <= 1) return 'urgent';
+  if (d <= 3) return 'warn';
+  return 'ok';
+}
+function expText(d) {
+  if (d === null) return '未設定';
+  if (d < 0) return `過期 ${Math.abs(d)} 天`;
+  if (d === 0) return '今天到期';
+  if (d === 1) return '明天到期';
+  return `剩 ${d} 天`;
+}
+function catEmoji(cat) {
+  return ({'肉類':'🥩','魚類':'🐟','海鮮':'🦐','蔬菜':'🥦','水果':'🍎','乳製品':'🥛','蛋類':'🥚','主食':'🍚','調味料':'🧂','飲料':'🧃','零食':'🍪','麵包':'🍞'})[cat] || '🥡';
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── RENDER ──
+window.render = function() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const cat = document.getElementById('catFilter').value;
+  const sort = document.getElementById('sortSel').value;
+
+  let list = items.filter(i => {
+    const mQ = !q || (i.name||'').toLowerCase().includes(q) || (i.category||'').toLowerCase().includes(q) || (i.location||'').toLowerCase().includes(q);
+    const mC = !cat || i.category === cat;
+    const mZ = !activeZone || i.zone === activeZone;
+    return mQ && mC && mZ;
+  });
+
+  list.sort((a,b) => {
+    if (sort === 'expiry') { const da=daysLeft(a.expiry)??9999, db=daysLeft(b.expiry)??9999; return da-db; }
+    if (sort === 'name') return (a.name||'').localeCompare(b.name||'','zh-TW');
+    if (sort === 'zone') return ZONES.indexOf(a.zone)-ZONES.indexOf(b.zone);
+    return (b.addedAt||0)-(a.addedAt||0);
+  });
+
+  // Stats
+  document.getElementById('sTotal').textContent = items.length;
+  document.getElementById('sExpiry').textContent = items.filter(i=>{ const d=daysLeft(i.expiry); return d===null||d>=0; }).length;
+  document.getElementById('sWarn').textContent = items.filter(i=>{ const d=daysLeft(i.expiry); return d!==null&&d>=0&&d<=3; }).length;
+  document.getElementById('sExpired').textContent = items.filter(i=>{ const d=daysLeft(i.expiry); return d!==null&&d<0; }).length;
+
+  // Zone counts
+  document.getElementById('cnt-all').textContent = items.length;
+  ZONES.forEach(z => { const el=document.getElementById('cnt-'+z); if(el) el.textContent=items.filter(i=>i.zone===z).length; });
+
+  // Category filter
+  const cats = [...new Set(items.map(i=>i.category).filter(Boolean))].sort();
+  const cf = document.getElementById('catFilter');
+  const prev = cf.value;
+  cf.innerHTML = '<option value="">全部類別</option>' + cats.map(c=>`<option value="${esc(c)}"${c===prev?' selected':''}>${esc(c)}</option>`).join('');
+  document.getElementById('catDL').innerHTML = cats.map(c=>`<option value="${esc(c)}">`).join('');
+
+  // Cards
+  const grid = document.getElementById('foodGrid');
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-emoji">🥡</div><p>沒有符合的食材</p></div>`;
+    return;
+  }
+  grid.innerHTML = list.map(item => {
+    const d = daysLeft(item.expiry);
+    const cls = expClass(d);
+    const fill = d===null ? 100 : Math.max(3,Math.min(100,(d/90)*100));
+    const expired = d!==null && d<0;
+    const photo = item.photo ? `<img src="${item.photo}" alt="">` : catEmoji(item.category);
+    return `<div class="food-card">
+      <div class="card-photo">${photo}</div>
+      ${expired ? `<div class="expired-badge">已過期</div>` : ''}
+      <div class="card-body">
+        <div class="card-name">${esc(item.name)}</div>
+        ${item.expiry ? `<div class="expiry-bar-wrap">
+          <div class="expiry-row"><span>保存期限</span><span class="expiry-days ${cls}">${expText(d)}</span></div>
+          <div class="ebar"><div class="efill ${cls}" style="width:${fill}%"></div></div>
+        </div>` : ''}
+        <div class="card-chips">
+          <span class="chip chip-zone">${ZONE_ICONS[item.zone]||''} ${esc(item.zone)}</span>
+          ${item.location ? `<span class="chip chip-loc">📍 ${esc(item.location)}</span>` : ''}
+          ${item.qty ? `<span class="chip chip-qty">×${esc(item.qty)}</span>` : ''}
+        </div>
+        ${item.note ? `<div class="card-note">💬 ${esc(item.note)}</div>` : ''}
+        <div class="card-actions">
+          <button class="card-btn card-btn-edit" onclick="openModal('${item._key}')">編輯</button>
+          <button class="card-btn card-btn-del" onclick="deleteItem('${item._key}','${esc(item.name)}')">刪除</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── ZONE TAB ──
+window.setZone = function(el) {
+  activeZone = el.dataset.zone;
+  document.querySelectorAll('.zone-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+// ── MODAL ──
+window.openModal = function(key=null) {
+  editId = key;
+  const item = key ? items.find(i=>i._key===key) : null;
+  document.getElementById('modalTitle').textContent = key ? '編輯食材' : '新增食材';
+  document.getElementById('fName').value = item?.name||'';
+  document.getElementById('fCat').value = item?.category||'';
+  document.getElementById('fLoc').value = item?.location||'';
+  document.getElementById('fQty').value = item?.qty||'';
+  document.getElementById('fExpiry').value = item?.expiry||'';
+  document.getElementById('fNote').value = item?.note||'';
+  photoBuf = item?.photo||null;
+  const prev = document.getElementById('photoPreview');
+  const hint = document.getElementById('photoHint');
+  if (photoBuf) { prev.src=photoBuf; prev.style.display='block'; hint.style.display='none'; }
+  else { prev.style.display='none'; hint.style.display='flex'; }
+  document.querySelectorAll('.zone-opt').forEach(o=>o.classList.toggle('selected', o.dataset.z===(item?.zone||'冷凍')));
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('fName').focus(), 100);
+}
+
+window.closeModal = function() {
+  document.getElementById('overlay').classList.remove('open');
+  editId=null; photoBuf=null;
+  document.getElementById('photoInput').value='';
+}
+
+window.overlayClick = function(e) { if(e.target===document.getElementById('overlay')) closeModal(); }
+
+window.selZone = function(el) {
+  document.querySelectorAll('.zone-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+window.handlePhoto = function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  // Resize to keep Firebase storage small
+  const canvas = document.createElement('canvas');
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const MAX = 600;
+    let w=img.width, h=img.height;
+    if (w>h && w>MAX) { h=h*MAX/w; w=MAX; }
+    else if (h>MAX) { w=w*MAX/h; h=MAX; }
+    canvas.width=w; canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    photoBuf = canvas.toDataURL('image/jpeg', 0.75);
+    const prev=document.getElementById('photoPreview');
+    prev.src=photoBuf; prev.style.display='block';
+    document.getElementById('photoHint').style.display='none';
+    URL.revokeObjectURL(url);
+  };
+  img.src=url;
+}
+
+window.saveItem = async function() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { toast('請填寫食材名稱','err'); return; }
+  const zone = document.querySelector('.zone-opt.selected')?.dataset.z||'冷凍';
+  const data = {
+    name, zone,
+    category: document.getElementById('fCat').value.trim(),
+    location: document.getElementById('fLoc').value.trim(),
+    qty: document.getElementById('fQty').value.trim(),
+    expiry: document.getElementById('fExpiry').value,
+    note: document.getElementById('fNote').value.trim(),
+    photo: photoBuf,
+    addedAt: editId ? (items.find(i=>i._key===editId)?.addedAt||Date.now()) : Date.now(),
+    updatedAt: Date.now()
+  };
+  const btn = document.getElementById('saveBtn');
+  btn.disabled=true; btn.textContent='儲存中…';
+  try {
+    if (editId) {
+      await update(ref(db,`foods/${editId}`), data);
+      toast(`「${name}」已更新`, 'ok');
+    } else {
+      await push(itemsRef, data);
+      toast(`「${name}」已新增`, 'ok');
+    }
+    closeModal();
+  } catch(e) {
+    toast('儲存失敗，請檢查網路','err');
+  }
+  btn.disabled=false; btn.textContent='儲存';
+}
+
+window.deleteItem = async function(key, name) {
+  if (!confirm(`確定刪除「${name}」？`)) return;
+  try {
+    await remove(ref(db,`foods/${key}`));
+    toast(`已刪除「${name}」`,'warn');
+  } catch(e) {
+    toast('刪除失敗','err');
+  }
+}
+
+// ── TOAST ──
+window.toast = function(msg, type='ok') {
+  const el=document.createElement('div');
+  el.className=`toast ${type}`; el.textContent=msg;
+  document.getElementById('toasts').appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('show')));
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),350); }, 2800);
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeModal();
+});
+</script>
+</body>
+</html>
